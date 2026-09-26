@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Back Card Shadow / Deck effect -->
+    <path
+        android:fillColor="#3360A5FA"
+        android:pathData="M34,31h40c3.31,0 6,2.69 6,6v40c0,3.31 -2.69,6 -6,6H34c-3.31,0 -6,-2.69 -6,-6V37c0,-3.31 2.69,-6 6,-6z" />
+    <!-- Middle Card -->
+    <path
+        android:fillColor="#663B82F6"
+        android:pathData="M31,34h40c3.31,0 6,2.69 6,6v40c0,3.31 -2.69,6 -6,6H31c-3.31,0 -6,-2.69 -6,-6V40c0,-3.31 2.69,-6 6,-6z" />
+    <!-- Front Flashcard Canvas -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,37h40c3.31,0 6,2.69 6,6v38c0,3.31 -2.69,6 -6,6H28c-3.31,0 -6,-2.69 -6,-6V43c0,-3.31 2.69,-6 6,-6z" />
+    <!-- Header banner on card -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M28,37h40c3.31,0 6,2.69 6,6v8H22v-8c0,-3.31 2.69,-6 6,-6z" />
+    <!-- German Flag miniature stripe accents on card -->
+    <path
+        android:fillColor="#111827"
+        android:pathData="M28,41h10v2h-10z" />
+    <path
+        android:fillColor="#DC2626"
+        android:pathData="M38,41h10v2h-10z" />
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M48,41h10v2h-10z" />
+    <!-- Text Lines on Card -->
+    <path
+        android:fillColor="#CBD5E1"
+        android:pathData="M27,57h20v3H27z" />
+    <path
+        android:fillColor="#E2E8F0"
+        android:pathData="M27,63h32v2.5H27z" />
+    <path
+        android:fillColor="#E2E8F0"
+        android:pathData="M27,68.5h24v2.5H27z" />
+    <!-- Bankai Lightning Bolt on Card -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M59,53l-9,15h7l-3,13 13,-17h-8l4,-11z" />
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M60,54l-8,13h6l-2.5,11 11,-15h-7l3.5,-9z" />
+</vector>

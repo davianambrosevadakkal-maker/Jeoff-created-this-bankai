@@ -1,0 +1,6 @@
+{
+  "name": "AnkiDroidBANKAI",
+  "description": "Next-generation spaced repetition flashcard app with range selection, Anki .apkg import, and German language learning tools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
