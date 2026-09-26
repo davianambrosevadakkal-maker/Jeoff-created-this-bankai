@@ -38,6 +38,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -392,7 +393,7 @@ private fun AddCardDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("der", "die", "das").forEach { g ->
+                    for (g in listOf("der", "die", "das")) {
                         val isSelected = gender.equals(g, ignoreCase = true)
                         OutlinedButton(
                             onClick = { gender = if (isSelected) "" else g },
