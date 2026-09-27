@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,15 +27,20 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -72,6 +77,7 @@ import com.example.ui.components.SortFilterSheet
 import com.example.ui.components.getGenderColor
 import com.example.ui.viewmodel.CardSortOption
 import com.example.ui.viewmodel.RangeSelectionState
+import com.example.ui.viewmodel.StudyDirection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +90,8 @@ fun CardListScreen(
     rangeState: RangeSelectionState,
     selectedCardIds: Set<Long>,
     ttsHelper: GermanTtsHelper,
+    displayDirection: StudyDirection = StudyDirection.GERMAN_TO_ENGLISH,
+    onDisplayDirectionChanged: (StudyDirection) -> Unit = {},
     onBack: () -> Unit,
     onSearchChanged: (String) -> Unit,
     onSortSelected: (CardSortOption) -> Unit,
@@ -94,13 +102,15 @@ fun CardListScreen(
     onStudyWholeDeck: () -> Unit,
     onBatchSuspend: (Boolean) -> Unit,
     onBatchResetSrs: () -> Unit,
+    onBatchFlag: (Int) -> Unit = {},
     onBatchExportCsv: () -> Unit,
     onAddCard: (String, String, String, String, String) -> Unit,
     onOpenImport: () -> Unit,
     onDeleteCard: (FlashcardEntity) -> Unit,
     onBatchDeleteSelected: () -> Unit,
     onClearSelection: () -> Unit,
-    onDeleteDeck: () -> Unit
+    onDeleteDeck: () -> Unit,
+    onCardInfoClick: (FlashcardEntity) -> Unit = {}
 ) {
     BackHandler { onBack() }
 
@@ -110,6 +120,7 @@ fun CardListScreen(
     var cardToDelete by remember { mutableStateOf<FlashcardEntity?>(null) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
     var showDeleteDeckConfirm by remember { mutableStateOf(false) }
+    var locallyFlippedCardIds by remember { mutableStateOf(setOf<Long>()) }
 
     Scaffold(
         topBar = {
@@ -252,6 +263,68 @@ fun CardListScreen(
                                 Text("Clear", fontSize = 12.sp)
                             }
                             Spacer(modifier = Modifier.width(6.dp))
+
+                            // Batch Flag dropdown
+                            var batchFlagExpanded by remember { mutableStateOf(false) }
+                            Box {
+                                OutlinedButton(
+                                    onClick = { batchFlagExpanded = true },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier.testTag("batch_flag_btn")
+                                ) {
+                                    Icon(Icons.Default.Flag, contentDescription = "Flag Selected", tint = Color(0xFFF59E0B), modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text("Flag", fontSize = 11.sp)
+                                }
+
+                                DropdownMenu(
+                                    expanded = batchFlagExpanded,
+                                    onDismissRequest = { batchFlagExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Red Flag") },
+                                        leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color(0xFFEF4444)) },
+                                        onClick = {
+                                            onBatchFlag(1)
+                                            batchFlagExpanded = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Orange Flag") },
+                                        leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color(0xFFF97316)) },
+                                        onClick = {
+                                            onBatchFlag(2)
+                                            batchFlagExpanded = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Green Flag") },
+                                        leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color(0xFF10B981)) },
+                                        onClick = {
+                                            onBatchFlag(3)
+                                            batchFlagExpanded = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Blue Flag") },
+                                        leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color(0xFF3B82F6)) },
+                                        onClick = {
+                                            onBatchFlag(4)
+                                            batchFlagExpanded = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Clear Flag") },
+                                        leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color.Gray) },
+                                        onClick = {
+                                            onBatchFlag(0)
+                                            batchFlagExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(6.dp))
                             Button(
                                 onClick = { showBatchDeleteConfirm = true },
                                 colors = ButtonDefaults.buttonColors(
@@ -266,6 +339,69 @@ fun CardListScreen(
                                 Text("Delete (${selectedCardIds.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
+                    }
+                }
+            }
+
+            // Card Front/Back Orientation Switcher Bar
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = "Card Direction",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Display:",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        DirectionPill(
+                            label = "🇩🇪 German 1st",
+                            isSelected = displayDirection == StudyDirection.GERMAN_TO_ENGLISH,
+                            onClick = {
+                                onDisplayDirectionChanged(StudyDirection.GERMAN_TO_ENGLISH)
+                                locallyFlippedCardIds = emptySet()
+                            },
+                            testTag = "direction_pill_german"
+                        )
+                        DirectionPill(
+                            label = "🇬🇧 English 1st",
+                            isSelected = displayDirection == StudyDirection.ENGLISH_TO_GERMAN,
+                            onClick = {
+                                onDisplayDirectionChanged(StudyDirection.ENGLISH_TO_GERMAN)
+                                locallyFlippedCardIds = emptySet()
+                            },
+                            testTag = "direction_pill_english"
+                        )
+                        DirectionPill(
+                            label = "🔄 Alt",
+                            isSelected = displayDirection == StudyDirection.ALTERNATING,
+                            onClick = {
+                                onDisplayDirectionChanged(StudyDirection.ALTERNATING)
+                                locallyFlippedCardIds = emptySet()
+                            },
+                            testTag = "direction_pill_alternating"
+                        )
                     }
                 }
             }
@@ -290,11 +426,27 @@ fun CardListScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(cards, key = { it.id }) { card ->
+                    itemsIndexed(cards, key = { _, card -> card.id }) { index, card ->
+                        val baseIsGermanFirst = when (displayDirection) {
+                            StudyDirection.GERMAN_TO_ENGLISH -> true
+                            StudyDirection.ENGLISH_TO_GERMAN -> false
+                            StudyDirection.ALTERNATING -> (index % 2 == 0)
+                        }
+                        val isGermanFirst = if (locallyFlippedCardIds.contains(card.id)) !baseIsGermanFirst else baseIsGermanFirst
+
                         CardRowItem(
                             card = card,
+                            isGermanFirst = isGermanFirst,
                             isSelected = selectedCardIds.contains(card.id),
                             onToggleSelect = { onToggleCardSelect(card.id) },
+                            onCardInfo = { onCardInfoClick(card) },
+                            onFlipCard = {
+                                locallyFlippedCardIds = if (locallyFlippedCardIds.contains(card.id)) {
+                                    locallyFlippedCardIds - card.id
+                                } else {
+                                    locallyFlippedCardIds + card.id
+                                }
+                            },
                             onPlayTts = { ttsHelper.speak(card.front) },
                             onDeleteCard = { cardToDelete = card }
                         )
@@ -465,12 +617,22 @@ fun CardListScreen(
 @Composable
 private fun CardRowItem(
     card: FlashcardEntity,
+    isGermanFirst: Boolean,
     isSelected: Boolean,
     onToggleSelect: () -> Unit,
+    onCardInfo: () -> Unit,
+    onFlipCard: () -> Unit,
     onPlayTts: () -> Unit,
     onDeleteCard: () -> Unit
 ) {
     val genderColor = getGenderColor(card.gender)
+    val primaryText = if (isGermanFirst) card.front else card.back
+    val secondaryText = if (isGermanFirst) card.back else card.front
+    val primaryColor = if (isGermanFirst && genderColor != Color.Unspecified) {
+        genderColor
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
     Card(
         modifier = Modifier
@@ -518,12 +680,12 @@ private fun CardRowItem(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = card.front,
+                        text = primaryText,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (genderColor != Color.Unspecified) genderColor else MaterialTheme.colorScheme.onSurface
+                        color = primaryColor
                     )
-                    if (card.gender.isNotBlank()) {
+                    if (isGermanFirst && card.gender.isNotBlank()) {
                         Spacer(modifier = Modifier.width(6.dp))
                         GenderBadge(gender = card.gender)
                     }
@@ -531,11 +693,87 @@ private fun CardRowItem(
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                Text(
-                    text = card.back,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = secondaryText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (!isGermanFirst && genderColor != Color.Unspecified) genderColor else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!isGermanFirst && card.gender.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        GenderBadge(gender = card.gender)
+                    }
+                }
+
+                // SRS status indicator pill
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val srsBadge = when {
+                        card.state == 3 -> "Suspended"
+                        card.repetitions == 0 -> "New"
+                        card.intervalDays <= 1 -> "Learning (1d)"
+                        card.intervalDays < 21 -> "Young (${card.intervalDays}d)"
+                        else -> "Mature (${card.intervalDays}d)"
+                    }
+                    val badgeColor = when {
+                        card.state == 3 -> Color(0xFF64748B)
+                        card.repetitions == 0 -> Color(0xFFA855F7)
+                        card.intervalDays <= 1 -> Color(0xFFF59E0B)
+                        card.intervalDays < 21 -> Color(0xFF3B82F6)
+                        else -> Color(0xFF10B981)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(badgeColor.copy(alpha = 0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(srsBadge, fontSize = 10.sp, color = badgeColor, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Flag indicator
+                    if (card.flag > 0) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        val flagColor = when (card.flag) {
+                            1 -> Color(0xFFEF4444)
+                            2 -> Color(0xFFF97316)
+                            3 -> Color(0xFF10B981)
+                            4 -> Color(0xFF3B82F6)
+                            else -> Color.Transparent
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(flagColor.copy(alpha = 0.2f))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Flag,
+                                contentDescription = "Flagged",
+                                tint = flagColor,
+                                modifier = Modifier.size(10.dp)
+                            )
+                        }
+                    }
+
+                    // Leech indicator
+                    if (card.lapses >= 8) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFFEF4444).copy(alpha = 0.2f))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Leech (${card.lapses})",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFEF4444)
+                            )
+                        }
+                    }
+                }
 
                 if (card.synonyms.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
@@ -556,6 +794,36 @@ private fun CardRowItem(
                         maxLines = 1
                     )
                 }
+            }
+
+            // Card Diagnostics Info Button
+            IconButton(
+                onClick = onCardInfo,
+                modifier = Modifier
+                    .size(34.dp)
+                    .testTag("card_info_btn_${card.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "SRS Info",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Flip Individual Card Sides Button
+            IconButton(
+                onClick = onFlipCard,
+                modifier = Modifier
+                    .size(36.dp)
+                    .testTag("flip_card_btn_${card.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SwapHoriz,
+                    contentDescription = "Flip Card Sides",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
             // Audio Pronunciation TTS Button
@@ -585,6 +853,32 @@ private fun CardRowItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DirectionPill(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    testTag: String
+) {
+    Surface(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onClick() }
+            .testTag(testTag),
+        shape = RoundedCornerShape(8.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isSelected) 3.dp else 0.dp
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }
 

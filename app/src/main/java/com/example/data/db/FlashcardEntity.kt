@@ -33,5 +33,6 @@ data class FlashcardEntity(
     val repetitions: Int = 0,
     val lapses: Int = 0,
     val state: Int = 0, // 0 = New, 1 = Learning, 2 = Review, 3 = Suspended
+    val flag: Int = 0, // 0 = None, 1 = Red, 2 = Orange, 3 = Green, 4 = Blue
     val createdAt: Long = System.currentTimeMillis()
 )

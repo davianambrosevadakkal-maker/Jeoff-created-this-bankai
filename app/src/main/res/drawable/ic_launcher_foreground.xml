@@ -4,47 +4,146 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Back Card Shadow / Deck effect -->
+    
+    <!-- Background glow / badge backdrop -->
     <path
-        android:fillColor="#3360A5FA"
-        android:pathData="M34,31h40c3.31,0 6,2.69 6,6v40c0,3.31 -2.69,6 -6,6H34c-3.31,0 -6,-2.69 -6,-6V37c0,-3.31 2.69,-6 6,-6z" />
-    <!-- Middle Card -->
+        android:fillColor="#1E293B"
+        android:pathData="M54,18 A36,36 0 1,1 53.9,18 Z" />
+
+    <!-- German Flag circular aura accent behind avatar -->
     <path
-        android:fillColor="#663B82F6"
-        android:pathData="M31,34h40c3.31,0 6,2.69 6,6v40c0,3.31 -2.69,6 -6,6H31c-3.31,0 -6,-2.69 -6,-6V40c0,-3.31 2.69,-6 6,-6z" />
-    <!-- Front Flashcard Canvas -->
+        android:fillColor="#33000000"
+        android:pathData="M54,20 A34,34 0 0,0 20,54 L20,50 A34,34 0 0,1 54,20 Z" />
+    <path
+        android:fillColor="#33DC2626"
+        android:pathData="M20,50 L20,58 A34,34 0 0,0 88,58 L88,50 Z" />
+    <path
+        android:fillColor="#33FBBF24"
+        android:pathData="M20,58 A34,34 0 0,0 54,88 A34,34 0 0,0 88,58 Z" />
+
+    <!-- Shoulders / Tan Crewneck T-Shirt (from video) -->
+    <path
+        android:fillColor="#C8B097"
+        android:pathData="M26,88 C26,76 34,70 54,70 C74,70 82,76 82,88 L82,92 L26,92 Z" />
+
+    <!-- Crewneck Collar Trim -->
+    <path
+        android:fillColor="#B89F86"
+        android:pathData="M44,70 C47,75 61,75 64,70 L61,70 C58,73 50,73 47,70 Z" />
+
+    <!-- Neck -->
+    <path
+        android:fillColor="#C48858"
+        android:pathData="M45,62 L45,73 C48,76 60,76 63,73 L63,62 Z" />
+
+    <!-- Neck shadow under beard -->
+    <path
+        android:fillColor="#A96B3E"
+        android:pathData="M45,62 C50,67 58,67 63,62 L63,66 C58,70 50,70 45,66 Z" />
+
+    <!-- Ears -->
+    <path
+        android:fillColor="#C48858"
+        android:pathData="M33,45 C31,45 31,54 34,56 C35,53 35,47 34,45 Z" />
+    <path
+        android:fillColor="#C48858"
+        android:pathData="M75,45 C77,45 77,54 74,56 C73,53 73,47 74,45 Z" />
+
+    <!-- Bald Head & Face Base Shape (Dome) -->
+    <path
+        android:fillColor="#D89A68"
+        android:pathData="M34,44 C34,26 42,22 54,22 C66,22 74,26 74,44 C74,58 70,68 54,68 C38,68 34,58 34,44 Z" />
+
+    <!-- Forehead Highlight / Bald Shine -->
+    <path
+        android:fillColor="#22FFFFFF"
+        android:pathData="M46,24 C50,23 58,23 62,24 C65,26 62,30 54,30 C46,30 43,26 46,24 Z" />
+
+    <!-- Full Black Beard & Sideburns -->
+    <path
+        android:fillColor="#18181B"
+        android:pathData="M33,43 C33,52 35,62 42,67 C47,71 61,71 66,67 C73,62 75,52 75,43 L73,44 C73,54 71,64 64,67 C59,69 49,69 44,67 C37,64 35,54 35,44 Z" />
+
+    <!-- Beard chin volume -->
+    <path
+        android:fillColor="#18181B"
+        android:pathData="M40,58 C40,69 47,72 54,72 C61,72 68,69 68,58 C64,62 59,64 54,64 C49,64 44,62 40,58 Z" />
+
+    <!-- Mustache -->
+    <path
+        android:fillColor="#18181B"
+        android:pathData="M43,55 C46,53 51,54 54,55 C57,54 62,53 65,55 C66,57 63,60 54,60 C45,60 42,57 43,55 Z" />
+
+    <!-- Lips (inside beard) -->
+    <path
+        android:fillColor="#A95D43"
+        android:pathData="M50,57 C52,58 56,58 58,57 C56,59 52,59 50,57 Z" />
+
+    <!-- Nose -->
+    <path
+        android:fillColor="#C07E4E"
+        android:pathData="M51,46 C51,51 50,52 54,52 C58,52 57,51 57,46 Z" />
+    <path
+        android:fillColor="#A96B3E"
+        android:pathData="M51,50 C52,52 56,52 57,50 Z" />
+
+    <!-- Eyebrows -->
+    <path
+        android:fillColor="#18181B"
+        android:pathData="M38,36 C42,35 47,36 49,38 C47,38 43,37 39,38 Z" />
+    <path
+        android:fillColor="#18181B"
+        android:pathData="M70,36 C66,35 61,36 59,38 C61,38 65,37 69,38 Z" />
+
+    <!-- Eyes -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M28,37h40c3.31,0 6,2.69 6,6v38c0,3.31 -2.69,6 -6,6H28c-3.31,0 -6,-2.69 -6,-6V43c0,-3.31 2.69,-6 6,-6z" />
-    <!-- Header banner on card -->
+        android:pathData="M40,40 C42,39 46,39 48,40 C46,42 42,42 40,40 Z" />
     <path
-        android:fillColor="#2563EB"
-        android:pathData="M28,37h40c3.31,0 6,2.69 6,6v8H22v-8c0,-3.31 2.69,-6 6,-6z" />
-    <!-- German Flag miniature stripe accents on card -->
+        android:fillColor="#262626"
+        android:pathData="M43,39 A2,2 0 1,1 42.9,39 Z" />
+
     <path
-        android:fillColor="#111827"
-        android:pathData="M28,41h10v2h-10z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M68,40 C66,39 62,39 60,40 C62,42 66,42 68,40 Z" />
     <path
-        android:fillColor="#DC2626"
-        android:pathData="M38,41h10v2h-10z" />
+        android:fillColor="#262626"
+        android:pathData="M65,39 A2,2 0 1,1 64.9,39 Z" />
+
+    <!-- Bold Black Glasses Frame (Left lens, Right lens, Bridge, Temple arms) -->
+    <!-- Left Frame -->
     <path
-        android:fillColor="#F59E0B"
-        android:pathData="M48,41h10v2h-10z" />
-    <!-- Text Lines on Card -->
+        android:fillColor="#09090B"
+        android:pathData="M36,36 L50,36 C51,36 52,37 52,38 L51,44 C51,46 49,47 48,47 L38,47 C36,47 35,46 35,44 L35,38 C35,37 35.5,36 36,36 Z M37.5,38 L37.5,43.5 C37.5,44.5 38.5,45 39.5,45 L46.5,45 C47.5,45 48.5,44.5 48.5,43.5 L49,38 Z" />
+
+    <!-- Right Frame -->
     <path
-        android:fillColor="#CBD5E1"
-        android:pathData="M27,57h20v3H27z" />
+        android:fillColor="#09090B"
+        android:pathData="M58,36 L72,36 C72.5,36 73,37 73,38 L73,44 C73,46 72,47 70,47 L60,47 C59,47 57,46 57,44 L56.5,38 C56.5,37 57.5,36 58,36 Z M59.5,38 L59,43.5 C59,44.5 60,45 61,45 L68.5,45 C69.5,45 70.5,44.5 70.5,43.5 L70.5,38 Z" />
+
+    <!-- Glasses Bridge -->
     <path
-        android:fillColor="#E2E8F0"
-        android:pathData="M27,63h32v2.5H27z" />
+        android:fillColor="#09090B"
+        android:pathData="M50,39 L58,39 L58,41 L50,41 Z" />
+
+    <!-- Glasses Temple Arms to Ears -->
     <path
-        android:fillColor="#E2E8F0"
-        android:pathData="M27,68.5h24v2.5H27z" />
-    <!-- Bankai Lightning Bolt on Card -->
+        android:fillColor="#09090B"
+        android:pathData="M31,41 L35,39 L35,41 L31,43 Z" />
     <path
-        android:fillColor="#F59E0B"
-        android:pathData="M59,53l-9,15h7l-3,13 13,-17h-8l4,-11z" />
+        android:fillColor="#09090B"
+        android:pathData="M77,41 L73,39 L73,41 L77,43 Z" />
+
+    <!-- Glasses Lens Glint (Reflection) -->
+    <path
+        android:fillColor="#33FFFFFF"
+        android:pathData="M39,39 L44,39 L40,44 L38,44 Z" />
+    <path
+        android:fillColor="#33FFFFFF"
+        android:pathData="M61,39 L66,39 L62,44 L60,44 Z" />
+
+    <!-- Lightning Bolt / Bankai Badge on Collar -->
     <path
         android:fillColor="#FBBF24"
-        android:pathData="M60,54l-8,13h6l-2.5,11 11,-15h-7l3.5,-9z" />
+        android:pathData="M54,80 L52,85 L54.5,85 L53.5,89 L57,84 L54.5,84 Z" />
 </vector>

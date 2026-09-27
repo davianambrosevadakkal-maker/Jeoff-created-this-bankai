@@ -22,9 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -56,16 +60,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.db.DeckEntity
+import com.example.data.db.FlashcardEntity
+import com.example.domain.goal.DailyLearningGoal
+import com.example.domain.srs.SrsDeckSettings
+import com.example.ui.components.DailyGoalTrackerCard
+import com.example.ui.components.SrsForecastCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeckListScreen(
     decks: List<DeckEntity>,
+    cards: List<FlashcardEntity> = emptyList(),
+    dailyGoal: DailyLearningGoal = DailyLearningGoal(),
+    srsSettings: SrsDeckSettings = SrsDeckSettings(),
     onSelectDeck: (Long) -> Unit,
     onStudyDeck: (Long) -> Unit,
+    onCramDeck: (Long) -> Unit = {},
     onOpenImport: (Long?) -> Unit,
     onCreateDeck: (String, String, String) -> Unit,
-    onDeleteDeck: (DeckEntity) -> Unit
+    onDeleteDeck: (DeckEntity) -> Unit,
+    onPlayIntroAnimation: () -> Unit = {},
+    onStartGoalStudy: () -> Unit = {},
+    onUpdateDailyGoal: (Int, Int) -> Unit = { _, _ -> },
+    onOpenSrsSettings: () -> Unit = {},
+    onOpenStatsDashboard: () -> Unit = {},
+    onOpenDbMaintenance: () -> Unit = {}
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var deckToDelete by remember { mutableStateOf<DeckEntity?>(null) }
@@ -74,7 +93,10 @@ fun DeckListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.clickable { onPlayIntroAnimation() },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -107,6 +129,46 @@ fun DeckListScreen(
                 },
                 actions = {
                     IconButton(
+                        onClick = onPlayIntroAnimation,
+                        modifier = Modifier.testTag("play_intro_animation_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = "Watch Intro Animation",
+                            tint = Color(0xFFF59E0B)
+                        )
+                    }
+                    IconButton(
+                        onClick = onOpenStatsDashboard,
+                        modifier = Modifier.testTag("open_stats_dashboard_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = "Review Heatmap & Analytics",
+                            tint = Color(0xFF10B981)
+                        )
+                    }
+                    IconButton(
+                        onClick = onOpenDbMaintenance,
+                        modifier = Modifier.testTag("open_db_maintenance_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Storage,
+                            contentDescription = "Database Maintenance & Backup",
+                            tint = Color(0xFF0D9488)
+                        )
+                    }
+                    IconButton(
+                        onClick = onOpenSrsSettings,
+                        modifier = Modifier.testTag("open_srs_settings_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "SRS Settings & Retention",
+                            tint = Color(0xFF38BDF8)
+                        )
+                    }
+                    IconButton(
                         onClick = { onOpenImport(null) },
                         modifier = Modifier.testTag("open_import_appbar_btn")
                     ) {
@@ -137,11 +199,83 @@ fun DeckListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Daily Learning Goal & Vocabulary Retention Tracker Component
+            DailyGoalTrackerCard(
+                goal = dailyGoal,
+                onStartStudy = onStartGoalStudy,
+                onUpdateTarget = onUpdateDailyGoal
+            )
+
+            // SRS Forecast & Card Maturity Breakdown Component
+            SrsForecastCard(
+                cards = cards,
+                settings = srsSettings
+            )
+
+            // Loading Video Screen Replay Banner
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clickable { onPlayIntroAnimation() }
+                    .testTag("play_video_loading_banner"),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF1E293B)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF2563EB)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Play Video",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "🎬 Play Video Loading Screen",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "German chant: \"Alle Jungen lauter!\" (Portrait Video)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Play ▶",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color(0xFF38BDF8),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             // Quick Import Banner
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
                     .clickable { onOpenImport(null) }
                     .testTag("quick_import_banner"),
                 shape = RoundedCornerShape(14.dp),
@@ -205,6 +339,7 @@ fun DeckListScreen(
                         deck = deck,
                         onOpenCards = { onSelectDeck(deck.id) },
                         onStudy = { onStudyDeck(deck.id) },
+                        onCram = { onCramDeck(deck.id) },
                         onImportToDeck = { onOpenImport(deck.id) },
                         onDeleteDeck = { deckToDelete = deck }
                     )
@@ -279,6 +414,7 @@ private fun DeckItemCard(
     deck: DeckEntity,
     onOpenCards: () -> Unit,
     onStudy: () -> Unit,
+    onCram: () -> Unit,
     onImportToDeck: () -> Unit,
     onDeleteDeck: () -> Unit
 ) {
@@ -391,6 +527,15 @@ private fun DeckItemCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Import")
+                }
+
+                OutlinedButton(
+                    onClick = onCram,
+                    modifier = Modifier.testTag("deck_cram_btn_${deck.id}")
+                ) {
+                    Icon(imageVector = Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFF59E0B))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Cram", color = Color(0xFFF59E0B))
                 }
 
                 Button(

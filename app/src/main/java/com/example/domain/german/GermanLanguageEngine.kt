@@ -243,6 +243,66 @@ object GermanLanguageEngine {
         )
     }
 
+    /**
+     * Verifies the user's typed English answer against expected English definition/meaning.
+     */
+    fun verifyEnglishAnswer(userInput: String, expectedEnglish: String): VerificationResult {
+        val rawInput = userInput.trim().lowercase(Locale.ENGLISH)
+        val rawExpected = expectedEnglish.trim().lowercase(Locale.ENGLISH)
+
+        if (rawInput.isEmpty()) {
+            return VerificationResult(
+                isCorrect = false,
+                scorePercentage = 0,
+                feedbackTitle = "No Answer Provided",
+                feedbackMessage = "Please type the English meaning.",
+                correctedText = expectedEnglish
+            )
+        }
+
+        if (rawInput == rawExpected) {
+            return VerificationResult(
+                isCorrect = true,
+                scorePercentage = 100,
+                feedbackTitle = "Correct! (100%)",
+                feedbackMessage = "Perfect translation match.",
+                correctedText = expectedEnglish
+            )
+        }
+
+        val expectedOptions = rawExpected
+            .split("/", ",", ";", "or")
+            .map { it.trim().removePrefix("to ").trim() }
+            .filter { it.isNotEmpty() }
+
+        val cleanInput = rawInput.removePrefix("to ").trim()
+
+        val matches = expectedOptions.any { opt ->
+            cleanInput == opt ||
+            cleanInput.contains(opt) ||
+            opt.contains(cleanInput) ||
+            levenshteinDistance(cleanInput, opt) <= 2
+        }
+
+        return if (matches) {
+            VerificationResult(
+                isCorrect = true,
+                scorePercentage = 95,
+                feedbackTitle = "Correct! (Matched definition)",
+                feedbackMessage = "Accurate meaning! Expected: '$expectedEnglish'.",
+                correctedText = expectedEnglish
+            )
+        } else {
+            VerificationResult(
+                isCorrect = false,
+                scorePercentage = 25,
+                feedbackTitle = "Check Definition",
+                feedbackMessage = "Target meaning is: '$expectedEnglish'.",
+                correctedText = expectedEnglish
+            )
+        }
+    }
+
     private fun extractKeyWord(text: String): String {
         val stripped = stripArticle(text)
         return stripped.split(" ", ",", ";", "/", "(").firstOrNull()?.trim() ?: stripped

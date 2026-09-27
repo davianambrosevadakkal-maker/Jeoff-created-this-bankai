@@ -5,17 +5,28 @@ import com.example.data.db.AppDatabase
 import com.example.data.db.DeckEntity
 import com.example.data.db.FlashcardEntity
 import com.example.data.db.StudyLogEntity
+import com.example.domain.goal.DailyLearningGoal
 import com.example.domain.importer.AnkiImportResult
 import com.example.domain.importer.AnkiPackageImporter
 import com.example.domain.importer.CsvColumnMapping
 import com.example.domain.importer.CsvImporter
 import com.example.domain.importer.DefaultGermanDecks
 import com.example.domain.srs.AnkiSrsEngine
+import com.example.domain.srs.FsrsEngine
+import com.example.domain.srs.FsrsOptimizationResult
+import com.example.domain.srs.SrsDeckSettings
 import com.example.domain.srs.SrsRating
+import com.example.domain.srs.SrsResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.InputStream
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class FlashcardRepository(private val db: AppDatabase) {
 
@@ -24,6 +35,20 @@ class FlashcardRepository(private val db: AppDatabase) {
     private val studyLogDao = db.studyLogDao()
 
     val allDecksFlow: Flow<List<DeckEntity>> = deckDao.getAllDecksFlow()
+    val allCardsFlow: Flow<List<FlashcardEntity>> = cardDao.getAllCardsFlow()
+    val allStudyLogsFlow: Flow<List<StudyLogEntity>> = studyLogDao.getAllLogsFlow()
+
+    suspend fun updateCardFlag(cardId: Long, flag: Int) = withContext(Dispatchers.IO) {
+        cardDao.updateCardFlag(cardId, flag)
+    }
+
+    suspend fun updateCardsFlag(cardIds: List<Long>, flag: Int) = withContext(Dispatchers.IO) {
+        cardDao.updateCardsFlag(cardIds, flag)
+    }
+
+    suspend fun manuallyRescheduleCard(cardId: Long, intervalDays: Int, dueTimestamp: Long) = withContext(Dispatchers.IO) {
+        cardDao.manuallyRescheduleCard(cardId, intervalDays, dueTimestamp)
+    }
 
     suspend fun initializeDefaultDataIfEmpty() = withContext(Dispatchers.IO) {
         val existingDecks = deckDao.getAllDecks()
@@ -93,19 +118,53 @@ class FlashcardRepository(private val db: AppDatabase) {
         deckDao.refreshDeckCardCount(card.deckId)
     }
 
-    suspend fun recordReview(card: FlashcardEntity, rating: SrsRating): FlashcardEntity =
-        withContext(Dispatchers.IO) {
-            val result = AnkiSrsEngine.calculateNextReview(card, rating)
-            cardDao.updateCard(result.updatedCard)
-            studyLogDao.insertLog(
-                StudyLogEntity(
-                    cardId = card.id,
-                    deckId = card.deckId,
-                    rating = rating.value,
-                    intervalDays = result.nextIntervalDays
-                )
+    suspend fun recordReview(
+        card: FlashcardEntity,
+        rating: SrsRating,
+        settings: SrsDeckSettings = SrsDeckSettings()
+    ): SrsResult = withContext(Dispatchers.IO) {
+        val result = AnkiSrsEngine.calculateNextReview(card, rating, settings)
+        cardDao.updateCard(result.updatedCard)
+        studyLogDao.insertLog(
+            StudyLogEntity(
+                cardId = card.id,
+                deckId = card.deckId,
+                rating = rating.value,
+                intervalDays = result.nextIntervalDays
             )
-            result.updatedCard
+        )
+        result
+    }
+
+    suspend fun undoLastReview(previousCard: FlashcardEntity) = withContext(Dispatchers.IO) {
+        // Restore previous card state
+        cardDao.updateCard(previousCard)
+        // Remove latest study log for this card
+        val latestLog = studyLogDao.getLatestLogForCard(previousCard.id)
+        if (latestLog != null) {
+            studyLogDao.deleteLogById(latestLog.id)
+        }
+    }
+
+    suspend fun suspendCard(cardId: Long, isSuspended: Boolean) = withContext(Dispatchers.IO) {
+        val newState = if (isSuspended) 3 else 0
+        cardDao.updateCardState(cardId, newState)
+    }
+
+    suspend fun buryCard(cardId: Long) = withContext(Dispatchers.IO) {
+        // Bury pushes review due date to tomorrow midnight (+24 hours)
+        val tomorrow = System.currentTimeMillis() + java.util.concurrent.TimeUnit.DAYS.toMillis(1)
+        cardDao.updateCardDueTimestamp(cardId, tomorrow)
+    }
+
+    fun getLogsForCardFlow(cardId: Long): Flow<List<StudyLogEntity>> {
+        return studyLogDao.getLogsForCardFlow(cardId)
+    }
+
+    suspend fun optimizeFsrsWeights(currentSettings: SrsDeckSettings): FsrsOptimizationResult =
+        withContext(Dispatchers.IO) {
+            val allLogs = studyLogDao.getAllLogsFlow().firstOrNull() ?: emptyList()
+            FsrsEngine.optimizeWeights(allLogs, currentSettings)
         }
 
     // Batch operations
@@ -193,5 +252,65 @@ class FlashcardRepository(private val db: AppDatabase) {
             sb.append("$frontEscaped,$backEscaped,$genderEscaped,$notesEscaped,$synsEscaped,$tagsEscaped,${c.intervalDays},${c.easeFactor}\n")
         }
         sb.toString()
+    }
+
+    // Daily Learning Goal and Retention Target Flow
+    fun getDailyLearningGoalFlow(
+        targetWords: Int,
+        targetRetentionRate: Float
+    ): Flow<DailyLearningGoal> = studyLogDao.getAllLogsFlow().map { allLogs ->
+        val startOfToday = DailyLearningGoal.getStartOfTodayMillis()
+        val todayLogs = allLogs.filter { it.timestamp >= startOfToday }
+
+        val reviewedCount = todayLogs.size
+        val againCount = todayLogs.count { it.rating == 1 }
+        val hardCount = todayLogs.count { it.rating == 2 }
+        val goodCount = todayLogs.count { it.rating == 3 }
+        val easyCount = todayLogs.count { it.rating == 4 }
+
+        val retainedCount = goodCount + easyCount
+        val lapsedCount = againCount + hardCount
+
+        val streak = calculateDayStreak(allLogs.map { it.timestamp })
+
+        DailyLearningGoal(
+            targetWordsCount = targetWords,
+            targetRetentionRate = targetRetentionRate,
+            reviewedCount = reviewedCount,
+            retainedCount = retainedCount,
+            lapsedCount = lapsedCount,
+            streakDays = streak,
+            againCount = againCount,
+            hardCount = hardCount,
+            goodCount = goodCount,
+            easyCount = easyCount
+        )
+    }
+
+    private fun calculateDayStreak(timestamps: List<Long>): Int {
+        if (timestamps.isEmpty()) return 1
+        val sdf = SimpleDateFormat("yyyyMMdd", Locale.US)
+        val activeDays = timestamps.map { sdf.format(Date(it)) }.toSet()
+
+        val cal = Calendar.getInstance()
+        var streak = 0
+
+        // Check if active today
+        val todayStr = sdf.format(cal.time)
+        if (activeDays.contains(todayStr)) {
+            streak++
+        }
+
+        // Count previous consecutive days
+        while (true) {
+            cal.add(Calendar.DAY_OF_YEAR, -1)
+            val dayStr = sdf.format(cal.time)
+            if (activeDays.contains(dayStr)) {
+                streak++
+            } else {
+                break
+            }
+        }
+        return streak.coerceAtLeast(1)
     }
 }

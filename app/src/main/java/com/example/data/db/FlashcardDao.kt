@@ -68,6 +68,18 @@ interface FlashcardDao {
     @Query("DELETE FROM flashcards WHERE deckId = :deckId")
     suspend fun deleteAllCardsInDeck(deckId: Long)
 
+    @Query("SELECT * FROM flashcards ORDER BY orderIndex ASC")
+    fun getAllCardsFlow(): Flow<List<FlashcardEntity>>
+
+    @Query("SELECT * FROM flashcards ORDER BY orderIndex ASC")
+    suspend fun getAllCards(): List<FlashcardEntity>
+
+    @Query("UPDATE flashcards SET state = :newState WHERE id = :cardId")
+    suspend fun updateCardState(cardId: Long, newState: Int)
+
+    @Query("UPDATE flashcards SET dueTimestamp = :dueTimestamp WHERE id = :cardId")
+    suspend fun updateCardDueTimestamp(cardId: Long, dueTimestamp: Long)
+
     @Query("UPDATE flashcards SET state = :newState WHERE id IN (:cardIds)")
     suspend fun updateCardsState(cardIds: List<Long>, newState: Int)
 
@@ -76,4 +88,16 @@ interface FlashcardDao {
 
     @Query("UPDATE flashcards SET state = 0, intervalDays = 0, easeFactor = 2.5, repetitions = 0, lapses = 0, dueTimestamp = 0 WHERE id IN (:cardIds)")
     suspend fun resetCardsProgress(cardIds: List<Long>)
+
+    @Query("UPDATE flashcards SET flag = :flag WHERE id = :cardId")
+    suspend fun updateCardFlag(cardId: Long, flag: Int)
+
+    @Query("UPDATE flashcards SET flag = :flag WHERE id IN (:cardIds)")
+    suspend fun updateCardsFlag(cardIds: List<Long>, flag: Int)
+
+    @Query("UPDATE flashcards SET tags = :tags WHERE id = :cardId")
+    suspend fun updateCardTags(cardId: Long, tags: String)
+
+    @Query("UPDATE flashcards SET intervalDays = :intervalDays, dueTimestamp = :dueTimestamp, state = 2 WHERE id = :cardId")
+    suspend fun manuallyRescheduleCard(cardId: Long, intervalDays: Int, dueTimestamp: Long)
 }

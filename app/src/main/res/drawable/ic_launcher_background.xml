@@ -14,13 +14,17 @@
                 android:endX="108"
                 android:endY="108"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#1E3A8A" />
-                <item android:offset="1.0" android:color="#0F172A" />
+                <item android:offset="0.0" android:color="#1E293B" />
+                <item android:offset="0.6" android:color="#0F172A" />
+                <item android:offset="1.0" android:color="#020617" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Subtle card glow circles -->
+    <!-- Subtle energetic radial pulse -->
     <path
         android:fillColor="#153B82F6"
-        android:pathData="M54,54m-42,0a42,42 0 1,1 84,0a42,42 0 1,1 -84,0" />
+        android:pathData="M54,54m-44,0a44,44 0 1,1 88,0a44,44 0 1,1 -88,0" />
+    <path
+        android:fillColor="#10BE185D"
+        android:pathData="M54,54m-32,0a32,32 0 1,1 64,0a32,32 0 1,1 -64,0" />
 </vector>
