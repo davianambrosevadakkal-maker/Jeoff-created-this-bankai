@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -32,6 +33,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +64,7 @@ fun RangeSelectionBar(
     onBatchSuspend: (Boolean) -> Unit,
     onBatchResetSrs: () -> Unit,
     onBatchExportCsv: () -> Unit,
+    onBatchDelete: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isCustomRangeExpanded by remember { mutableStateOf(false) }
@@ -167,6 +170,30 @@ fun RangeSelectionBar(
                                 showBatchMenu = false
                                 onBatchExportCsv()
                             }
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        "Delete Micro-Set Cards...",
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            },
+                            onClick = {
+                                showBatchMenu = false
+                                onBatchDelete()
+                            },
+                            modifier = Modifier.testTag("batch_delete_microset_menu_item")
                         )
                     }
                 }

@@ -132,7 +132,14 @@ fun AnkiBankaiApp(
                         },
                         onAddCard = { front, back, notes, gender, tags ->
                             viewModel.addCardToCurrentDeck(front, back, notes, gender, tags)
-                        }
+                        },
+                        onOpenImport = {
+                            viewModel.openCsvImportDialog(targetDeckId = currentDeck.id)
+                        },
+                        onDeleteCard = { viewModel.deleteCard(it) },
+                        onBatchDeleteSelected = { viewModel.batchDeleteSelected() },
+                        onClearSelection = { viewModel.clearCardSelection() },
+                        onDeleteDeck = { viewModel.deleteDeck(currentDeck) }
                     )
                 } else {
                     // Fallback to deck list if deck is not found
@@ -140,10 +147,13 @@ fun AnkiBankaiApp(
                         decks = decks,
                         onSelectDeck = { viewModel.selectDeck(it) },
                         onStudyDeck = { viewModel.startDeckStudy(it) },
-                        onOpenImport = { viewModel.openCsvImportDialog(targetDeckId = decks.firstOrNull()?.id ?: 1L) },
+                        onOpenImport = { chosenDeckId ->
+                            viewModel.openCsvImportDialog(targetDeckId = chosenDeckId ?: decks.firstOrNull()?.id ?: 1L)
+                        },
                         onCreateDeck = { name, desc, color ->
                             viewModel.createDeck(name, desc, color)
-                        }
+                        },
+                        onDeleteDeck = { viewModel.deleteDeck(it) }
                     )
                 }
             }
@@ -154,20 +164,28 @@ fun AnkiBankaiApp(
                     decks = decks,
                     onSelectDeck = { viewModel.selectDeck(it) },
                     onStudyDeck = { viewModel.startDeckStudy(it) },
-                    onOpenImport = { viewModel.openCsvImportDialog(targetDeckId = decks.firstOrNull()?.id ?: 1L) },
+                    onOpenImport = { chosenDeckId ->
+                        viewModel.openCsvImportDialog(targetDeckId = chosenDeckId ?: decks.firstOrNull()?.id ?: 1L)
+                    },
                     onCreateDeck = { name, desc, color ->
                         viewModel.createDeck(name, desc, color)
-                    }
+                    },
+                    onDeleteDeck = { viewModel.deleteDeck(it) }
                 )
             }
         }
 
-        // CSV and Anki (.apkg) Import Modal Dialog
+        // CSV and Anki (.apkg) Import Modal Dialog with Full Deck Selection
         if (csvImportState.isOpen) {
             ImportModalDialog(
                 state = csvImportState,
+                decks = decks,
                 onCsvContentChanged = { viewModel.updateCsvContent(it) },
                 onMappingChanged = { viewModel.updateCsvMapping(it) },
+                onTargetDeckChanged = { viewModel.setImportTargetDeck(it) },
+                onCreateNewDeck = { name, desc, color ->
+                    viewModel.createDeckForImport(name, desc, color)
+                },
                 onExecuteCsvImport = { viewModel.executeCsvImport() },
                 onImportAnkiUri = { uri ->
                     try {

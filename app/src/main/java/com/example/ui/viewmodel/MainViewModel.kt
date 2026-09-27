@@ -448,10 +448,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteCurrentDeck(deck: DeckEntity) {
+        deleteDeck(deck)
+    }
+
+    fun deleteDeck(deck: DeckEntity) {
         viewModelScope.launch {
             repository.deleteDeck(deck)
-            _selectedDeckId.value = null
+            if (_selectedDeckId.value == deck.id) {
+                _selectedDeckId.value = null
+            }
             _toastMessage.value = "Deck '${deck.name}' deleted"
+        }
+    }
+
+    fun deleteCard(card: FlashcardEntity) {
+        viewModelScope.launch {
+            repository.deleteCard(card)
+            _selectedCardIds.value = _selectedCardIds.value - card.id
+            _toastMessage.value = "Deleted card '${card.front}'"
         }
     }
 
@@ -481,6 +495,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateCsvMapping(mapping: CsvColumnMapping) {
         _csvImportState.value = _csvImportState.value.copy(currentMapping = mapping)
+    }
+
+    fun setImportTargetDeck(deckId: Long) {
+        _csvImportState.value = _csvImportState.value.copy(targetDeckId = deckId)
+    }
+
+    fun createDeckForImport(name: String, description: String = "", colorHex: String = "#2563EB") {
+        viewModelScope.launch {
+            val newDeckId = repository.createDeck(name, description, colorHex)
+            _csvImportState.value = _csvImportState.value.copy(targetDeckId = newDeckId)
+            _toastMessage.value = "Deck '$name' created & selected for import"
+        }
     }
 
     fun closeCsvImportDialog() {

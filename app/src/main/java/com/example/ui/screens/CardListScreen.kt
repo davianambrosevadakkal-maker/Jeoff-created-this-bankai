@@ -25,11 +25,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -41,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -91,13 +95,21 @@ fun CardListScreen(
     onBatchSuspend: (Boolean) -> Unit,
     onBatchResetSrs: () -> Unit,
     onBatchExportCsv: () -> Unit,
-    onAddCard: (String, String, String, String, String) -> Unit
+    onAddCard: (String, String, String, String, String) -> Unit,
+    onOpenImport: () -> Unit,
+    onDeleteCard: (FlashcardEntity) -> Unit,
+    onBatchDeleteSelected: () -> Unit,
+    onClearSelection: () -> Unit,
+    onDeleteDeck: () -> Unit
 ) {
     BackHandler { onBack() }
 
     var isSearchActive by remember { mutableStateOf(false) }
     var isSortSheetOpen by remember { mutableStateOf(false) }
     var isAddCardDialogOpen by remember { mutableStateOf(false) }
+    var cardToDelete by remember { mutableStateOf<FlashcardEntity?>(null) }
+    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
+    var showDeleteDeckConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -151,11 +163,27 @@ fun CardListScreen(
                     IconButton(onClick = { isSortSheetOpen = true }, modifier = Modifier.testTag("open_sort_btn")) {
                         Icon(imageVector = Icons.Default.Sort, contentDescription = "Sort Cards")
                     }
+                    IconButton(onClick = onOpenImport, modifier = Modifier.testTag("import_to_this_deck_appbar_btn")) {
+                        Icon(
+                            imageVector = Icons.Default.FileUpload,
+                            contentDescription = "Import Cards into ${deck.name}"
+                        )
+                    }
                     IconButton(onClick = onStudyWholeDeck, modifier = Modifier.testTag("study_all_btn")) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Study Deck",
                             tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(
+                        onClick = { showDeleteDeckConfirm = true },
+                        modifier = Modifier.testTag("delete_deck_from_card_list_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete ${deck.name}",
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
                         )
                     }
                 },
@@ -188,8 +216,59 @@ fun CardListScreen(
                 onStudyMicroSet = onStudyMicroSet,
                 onBatchSuspend = onBatchSuspend,
                 onBatchResetSrs = onBatchResetSrs,
-                onBatchExportCsv = onBatchExportCsv
+                onBatchExportCsv = onBatchExportCsv,
+                onBatchDelete = { showBatchDeleteConfirm = true }
             )
+
+            // Multi-selected cards quick action banner
+            if (selectedCardIds.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .testTag("selected_cards_action_bar"),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                    tonalElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${selectedCardIds.size} cards selected",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(
+                                onClick = onClearSelection,
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text("Clear", fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Button(
+                                onClick = { showBatchDeleteConfirm = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                ),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.testTag("batch_delete_selected_btn")
+                            ) {
+                                Icon(imageVector = Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Delete (${selectedCardIds.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
 
             // Cards List
             if (cards.isEmpty()) {
@@ -216,7 +295,8 @@ fun CardListScreen(
                             card = card,
                             isSelected = selectedCardIds.contains(card.id),
                             onToggleSelect = { onToggleCardSelect(card.id) },
-                            onPlayTts = { ttsHelper.speak(card.front) }
+                            onPlayTts = { ttsHelper.speak(card.front) },
+                            onDeleteCard = { cardToDelete = card }
                         )
                     }
                     item {
@@ -244,6 +324,142 @@ fun CardListScreen(
             }
         )
     }
+
+    // Single card deletion confirmation dialog
+    cardToDelete?.let { card ->
+        AlertDialog(
+            onDismissRequest = { cardToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = { Text("Delete Flashcard?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete card #${card.orderIndex}:\n\n\"${card.front}\" (${card.back})?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteCard(card)
+                        cardToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    modifier = Modifier.testTag("confirm_delete_card_btn")
+                ) {
+                    Text("Delete Card", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { cardToDelete = null },
+                    modifier = Modifier.testTag("cancel_delete_card_btn")
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Batch cards deletion confirmation dialog
+    if (showBatchDeleteConfirm) {
+        val count = if (selectedCardIds.isNotEmpty()) selectedCardIds.size else cards.size
+        AlertDialog(
+            onDismissRequest = { showBatchDeleteConfirm = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = { Text("Delete $count Cards?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "Are you sure you want to permanently delete $count cards from '${deck.name}'? This cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onBatchDeleteSelected()
+                        showBatchDeleteConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    modifier = Modifier.testTag("confirm_batch_delete_btn")
+                ) {
+                    Text("Delete $count Cards", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showBatchDeleteConfirm = false },
+                    modifier = Modifier.testTag("cancel_batch_delete_btn")
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Entire Deck deletion confirmation dialog
+    if (showDeleteDeckConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDeckConfirm = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = { Text("Delete Entire Deck?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete '${deck.name}' and all ${deck.cardCount} cards inside it? This cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDeckConfirm = false
+                        onDeleteDeck()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    modifier = Modifier.testTag("confirm_delete_deck_from_cards_btn")
+                ) {
+                    Text("Delete Deck", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDeckConfirm = false },
+                    modifier = Modifier.testTag("cancel_delete_deck_from_cards_btn")
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -251,7 +467,8 @@ private fun CardRowItem(
     card: FlashcardEntity,
     isSelected: Boolean,
     onToggleSelect: () -> Unit,
-    onPlayTts: () -> Unit
+    onPlayTts: () -> Unit,
+    onDeleteCard: () -> Unit
 ) {
     val genderColor = getGenderColor(card.gender)
 
@@ -350,6 +567,21 @@ private fun CardRowItem(
                     imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                     contentDescription = "Pronounce German",
                     tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Delete Single Card Button
+            IconButton(
+                onClick = onDeleteCard,
+                modifier = Modifier
+                    .size(36.dp)
+                    .testTag("delete_card_btn_${card.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete card",
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }

@@ -6,10 +6,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -20,10 +22,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -47,6 +52,7 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,21 +70,32 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.data.db.DeckEntity
 import com.example.domain.importer.CsvColumnMapping
+import com.example.ui.screens.CreateDeckDialog
 import com.example.ui.viewmodel.CsvImportState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportModalDialog(
     state: CsvImportState,
+    decks: List<DeckEntity>,
     onCsvContentChanged: (String) -> Unit,
     onMappingChanged: (CsvColumnMapping) -> Unit,
+    onTargetDeckChanged: (Long) -> Unit,
+    onCreateNewDeck: (String, String, String) -> Unit,
     onExecuteCsvImport: () -> Unit,
     onImportAnkiUri: (Uri) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) } // 0: CSV, 1: Anki .apkg
+    var showCreateDeckDialog by remember { mutableStateOf(false) }
+    var deckDropdownExpanded by remember { mutableStateOf(false) }
+
+    val targetDeck = decks.find { it.id == state.targetDeckId }
+    val isAutoCreateAnki = state.targetDeckId <= 0L
+    val targetDeckName = targetDeck?.name ?: "Selected Deck"
 
     // File launcher for .apkg / .colpkg or .csv
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -109,7 +126,7 @@ fun ImportModalDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.92f)
+                .fillMaxHeight(0.94f)
                 .clip(RoundedCornerShape(24.dp))
                 .testTag("import_dialog"),
             color = MaterialTheme.colorScheme.surface
@@ -146,7 +163,7 @@ fun ImportModalDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Tabs: CSV vs Anki .apkg
                 PrimaryTabRow(selectedTabIndex = selectedTab) {
@@ -164,12 +181,207 @@ fun ImportModalDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Target Destination Deck Selection Card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("import_target_deck_card"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "IMPORT INTO DECK:",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            TextButton(
+                                onClick = { showCreateDeckDialog = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.testTag("new_deck_from_import_link")
+                            ) {
+                                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("New Deck", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        ExposedDropdownMenuBox(
+                            expanded = deckDropdownExpanded,
+                            onExpandedChange = { deckDropdownExpanded = it },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val deckDisplayName = if (selectedTab == 1 && isAutoCreateAnki) {
+                                "✨ Auto-create new deck from Anki package"
+                            } else {
+                                targetDeck?.name ?: "Select a deck..."
+                            }
+                            val deckDetails = if (selectedTab == 1 && isAutoCreateAnki) {
+                                "Internal Anki deck name will be used"
+                            } else {
+                                "${targetDeck?.cardCount ?: 0} cards currently"
+                            }
+
+                            OutlinedTextField(
+                                value = "$deckDisplayName  ($deckDetails)",
+                                onValueChange = {},
+                                readOnly = true,
+                                leadingIcon = {
+                                    if (selectedTab == 1 && isAutoCreateAnki) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    } else {
+                                        val color = try {
+                                            Color(android.graphics.Color.parseColor(targetDeck?.colorHex ?: "#2563EB"))
+                                        } catch (e: Exception) {
+                                            MaterialTheme.colorScheme.primary
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clip(CircleShape)
+                                                .background(color)
+                                        )
+                                    }
+                                },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = deckDropdownExpanded) },
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                                    .testTag("target_deck_dropdown_field")
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = deckDropdownExpanded,
+                                onDismissRequest = { deckDropdownExpanded = false }
+                            ) {
+                                if (selectedTab == 1) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.AutoAwesome,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column {
+                                                    Text("✨ Auto-create from Anki package", fontWeight = FontWeight.Bold)
+                                                    Text(
+                                                        "Creates a new deck using the name stored inside the .apkg",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        trailingIcon = if (isAutoCreateAnki) {
+                                            { Icon(imageVector = Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary) }
+                                        } else null,
+                                        onClick = {
+                                            onTargetDeckChanged(-1L)
+                                            deckDropdownExpanded = false
+                                        },
+                                        modifier = Modifier.testTag("target_deck_auto_anki")
+                                    )
+                                    HorizontalDivider()
+                                }
+
+                                decks.forEach { d ->
+                                    val isCurrent = d.id == state.targetDeckId && (!isAutoCreateAnki || selectedTab == 0)
+                                    val dColor = try {
+                                        Color(android.graphics.Color.parseColor(d.colorHex))
+                                    } catch (e: Exception) {
+                                        MaterialTheme.colorScheme.primary
+                                    }
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(10.dp)
+                                                            .clip(CircleShape)
+                                                            .background(dColor)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(10.dp))
+                                                    Text(
+                                                        text = d.name,
+                                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "${d.cardCount} cards",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        },
+                                        trailingIcon = if (isCurrent) {
+                                            { Icon(imageVector = Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary) }
+                                        } else null,
+                                        onClick = {
+                                            onTargetDeckChanged(d.id)
+                                            deckDropdownExpanded = false
+                                        },
+                                        modifier = Modifier.testTag("target_deck_select_${d.id}")
+                                    )
+                                }
+
+                                HorizontalDivider()
+
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text("➕ Create New Deck...", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                        }
+                                    },
+                                    onClick = {
+                                        deckDropdownExpanded = false
+                                        showCreateDeckDialog = true
+                                    },
+                                    modifier = Modifier.testTag("target_deck_create_new_btn")
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 if (selectedTab == 0) {
                     // CSV Import View
                     CsvImportContent(
                         state = state,
+                        targetDeckName = targetDeckName,
                         onContentChanged = onCsvContentChanged,
                         onMappingChanged = onMappingChanged,
                         onPickFile = {
@@ -180,6 +392,8 @@ fun ImportModalDialog(
                 } else {
                     // Anki Package Import View
                     AnkiPackageContent(
+                        targetDeckName = targetDeckName,
+                        isAutoCreate = isAutoCreateAnki,
                         onPickAnkiFile = {
                             filePickerLauncher.launch(arrayOf("*/*"))
                         },
@@ -200,12 +414,23 @@ fun ImportModalDialog(
             }
         }
     }
+
+    if (showCreateDeckDialog) {
+        CreateDeckDialog(
+            onDismiss = { showCreateDeckDialog = false },
+            onCreate = { name, desc, color ->
+                onCreateNewDeck(name, desc, color)
+                showCreateDeckDialog = false
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CsvImportContent(
     state: CsvImportState,
+    targetDeckName: String,
     onContentChanged: (String) -> Unit,
     onMappingChanged: (CsvColumnMapping) -> Unit,
     onPickFile: () -> Unit,
@@ -406,7 +631,7 @@ private fun CsvImportContent(
                 } else {
                     Icon(imageVector = Icons.Default.FileUpload, contentDescription = "Import", modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Import Into Deck", fontWeight = FontWeight.Bold)
+                    Text("Import Into '$targetDeckName'", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -475,6 +700,8 @@ private fun ColumnSelectorDropdown(
 
 @Composable
 private fun AnkiPackageContent(
+    targetDeckName: String,
+    isAutoCreate: Boolean,
     onPickAnkiFile: () -> Unit,
     onLoadSampleCsv: () -> Unit
 ) {
@@ -524,7 +751,8 @@ private fun AnkiPackageContent(
                 ) {
                     Icon(imageVector = Icons.Default.FileUpload, contentDescription = "Select .apkg")
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Select .apkg or .colpkg File", fontWeight = FontWeight.Bold)
+                    val btnLabel = if (isAutoCreate) "Pick File & Auto-Create Deck" else "Pick File & Import into '$targetDeckName'"
+                    Text(btnLabel, fontWeight = FontWeight.Bold)
                 }
             }
         }

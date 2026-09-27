@@ -158,12 +158,24 @@ class FlashcardRepository(private val db: AppDatabase) {
         withContext(Dispatchers.IO) {
             val result = AnkiPackageImporter.importPackage(context, inputStream, targetDeckId)
             if (result.success && result.cards.isNotEmpty()) {
-                val maxIndex = cardDao.getMaxOrderIndex(targetDeckId) ?: 0
+                val effectiveDeckId = if (targetDeckId <= 0L) {
+                    val fallbackName = if (result.deckName.isNotBlank()) result.deckName else "Imported Anki Deck"
+                    deckDao.insertDeck(
+                        DeckEntity(
+                            name = fallbackName,
+                            description = "Imported from Anki package archive",
+                            colorHex = "#2563EB"
+                        )
+                    )
+                } else {
+                    targetDeckId
+                }
+                val maxIndex = cardDao.getMaxOrderIndex(effectiveDeckId) ?: 0
                 val reindexed = result.cards.mapIndexed { idx, c ->
-                    c.copy(deckId = targetDeckId, orderIndex = maxIndex + 1 + idx)
+                    c.copy(deckId = effectiveDeckId, orderIndex = maxIndex + 1 + idx)
                 }
                 cardDao.insertCards(reindexed)
-                deckDao.refreshDeckCardCount(targetDeckId)
+                deckDao.refreshDeckCardCount(effectiveDeckId)
             }
             result
         }

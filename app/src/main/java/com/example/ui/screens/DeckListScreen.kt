@@ -21,11 +21,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,10 +63,12 @@ fun DeckListScreen(
     decks: List<DeckEntity>,
     onSelectDeck: (Long) -> Unit,
     onStudyDeck: (Long) -> Unit,
-    onOpenImport: () -> Unit,
-    onCreateDeck: (String, String, String) -> Unit
+    onOpenImport: (Long?) -> Unit,
+    onCreateDeck: (String, String, String) -> Unit,
+    onDeleteDeck: (DeckEntity) -> Unit
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
+    var deckToDelete by remember { mutableStateOf<DeckEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -103,7 +107,7 @@ fun DeckListScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = onOpenImport,
+                        onClick = { onOpenImport(null) },
                         modifier = Modifier.testTag("open_import_appbar_btn")
                     ) {
                         Icon(
@@ -138,7 +142,7 @@ fun DeckListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clickable { onOpenImport() }
+                    .clickable { onOpenImport(null) }
                     .testTag("quick_import_banner"),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
@@ -168,7 +172,7 @@ fun DeckListScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Custom column mapping & Anki SQLite migration",
+                                text = "Select any deck, create new, or auto-detect",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -200,7 +204,9 @@ fun DeckListScreen(
                     DeckItemCard(
                         deck = deck,
                         onOpenCards = { onSelectDeck(deck.id) },
-                        onStudy = { onStudyDeck(deck.id) }
+                        onStudy = { onStudyDeck(deck.id) },
+                        onImportToDeck = { onOpenImport(deck.id) },
+                        onDeleteDeck = { deckToDelete = deck }
                     )
                 }
 
@@ -220,13 +226,61 @@ fun DeckListScreen(
             }
         )
     }
+
+    deckToDelete?.let { deck ->
+        AlertDialog(
+            onDismissRequest = { deckToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text("Delete Deck?", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete '${deck.name}' and all of its ${deck.cardCount} cards? This action cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteDeck(deck)
+                        deckToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    modifier = Modifier.testTag("confirm_delete_deck_btn")
+                ) {
+                    Text("Delete Deck", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { deckToDelete = null },
+                    modifier = Modifier.testTag("cancel_delete_deck_btn")
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun DeckItemCard(
     deck: DeckEntity,
     onOpenCards: () -> Unit,
-    onStudy: () -> Unit
+    onStudy: () -> Unit,
+    onImportToDeck: () -> Unit,
+    onDeleteDeck: () -> Unit
 ) {
     val deckColor = try {
         Color(android.graphics.Color.parseColor(deck.colorHex))
@@ -268,18 +322,34 @@ private fun DeckItemCard(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "${deck.cardCount} cards",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "${deck.cardCount} cards",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = onDeleteDeck,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("delete_deck_btn_${deck.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete ${deck.name}",
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -307,7 +377,20 @@ private fun DeckItemCard(
                 ) {
                     Icon(imageVector = Icons.Default.Style, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Browse & Range")
+                    Text("Cards")
+                }
+
+                OutlinedButton(
+                    onClick = onImportToDeck,
+                    modifier = Modifier.testTag("deck_import_btn_${deck.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FileUpload,
+                        contentDescription = "Import to ${deck.name}",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Import")
                 }
 
                 Button(
@@ -321,7 +404,7 @@ private fun DeckItemCard(
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Study Now")
+                    Text("Study")
                 }
             }
         }
@@ -329,7 +412,7 @@ private fun DeckItemCard(
 }
 
 @Composable
-private fun CreateDeckDialog(
+fun CreateDeckDialog(
     onDismiss: () -> Unit,
     onCreate: (String, String, String) -> Unit
 ) {
